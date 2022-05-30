@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Meu dinossaurinho</title>
+        <style>
+            canvas{
+                position: absolute;
+                top: 0px;
+                bottom: 0px;
+                left: 0px;
+                right: 0px;
+                margin: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <script>
+            //variaveis do jogo
+            var canvas, ctx, height, width, qframes = 0, maxPulos = 3, velocidade = 6, estadoAtual, record;
+
+            var estados={
+                jogar: 0,
+                jogando: 1,
+                perdeu: 2
+            };
+
+            var chao ={
+                y : 550,
+                height: 50,
+                cor: "#FFFDC0",
+
+                desenha: function(){
+                    ctx.fillStyle = this.cor;
+                    ctx.fillRect(0, this.y, width, this.height);
+                }
+            };
+
+            var bloco  = {
+                x: 50,
+                y: 0,
+                width: 50,
+                height: 50,
+                cor: "#e41749",
+                gravidade: 1.6,
+                velocidade: 0,
+                forcaPulo: 23.5,
+                qntPulos: 0,
+                score: 0,
+
+                atualiza: function() {
+                    this.velocidade += this.gravidade;
+                    this.y += this.velocidade;
+
+                    if (this.y > chao.y-this.height && estadoAtual != estados.perdeu){
+                        this.y = chao.y - this.height;
+                        this.qntPulos = 0;
+                        this.velocidade = 0;
+                    } 
+                },
+
+                pula: function(){
+                    if(this.qntPulos < maxPulos){
+                        this.velocidade = -this.forcaPulo;
+                        this.qntPulos++;
+                    }
+                },
+
+                reset: function () {
+                    this.velocidade = 0;
+                    this.y = 0;
+
+                    if (this.score > record) {
+                        localStorage.setItem("record", this.score);
+                        record = this.score;
+                    }
+
+                    this.score = 0;
+                },
+                
+                desenha: function(){
+                    ctx.fillStyle = this.cor;
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                }
+
+
+            };
+
+            var obstaculos = {
+                _obs: [],
+                cores: ["#f5587b", "#7B3B8C", "#f1404b", "#29aba4", "#ec693f"],
+                tempoInsere: 0,
+                
+                insere: function (){
+                    this._obs.push({
+                        x: width,
+                        largura: 50,
+                        altura: 30 + Math.floor(120 * Math.random()),
+                        cor: this.cores[Math.floor(5 * Math.random())]
+                    }); 
+
+                    this.tempoInsere = 31 + Math.floor(21 * Math.random());
+                },
+
+                atualiza: function() {
+                    if (this.tempoInsere == 0){
+                        this.insere();
+                    }else{
+                        this.tempoInsere--;
+                    }
+
+                    for (var i = 0, tam = this._obs.length; i < tam; i++) {
+                        var obs = this._obs[i];
+
+                        obs.x -= velocidade;
+
+                        if (bloco.x < obs.x + obs.largura && bloco.x + bloco.width >= obs.x && bloco.y + bloco.height >= chao.y - obs.altura){
+                            estadoAtual = estados.perdeu;
+                        }
+
+                        else if (obs.x == 0){
+                            bloco.score++;
+                        }
+
+                        else if (obs.x <= -obs.largura){
+                            this._obs.splice(i, 1);
+                            tam--;
+                            i--;
+                        }
+                    }
+                },
+
+                limpa: function () {
+                    this._obs = [];
+                },
+
+                desenha: function () {
+                    for (var i = 0, tam = this._obs.length; i < tam; i++) {
+                        var obs = this._obs[i];
+                        ctx.fillStyle = obs.cor;
+                        ctx.fillRect(obs.x, chao.y - obs.altura, obs.largura, obs.altura );
+                    }
+                },
+            };
+
+            function desenho(){
+                ctx.fillStyle = "#8ac6d1";
+                ctx.fillRect(0,0, width, height);
+
+                ctx.fillStyle = "#FFFFFF";
+                ctx.font = "50px Arial";
+                ctx.fillText(bloco.score, 5, 43);
+
+                
+                ctx.font = "30px Arial";
+
+                if (record < 10000){
+                    ctx.fillText("Record: " + record, 400, 43);
+                }else if (record >= 10000 && record <100000){
+                    ctx.fillText("Record: " + record, 370, 43);
+                }else {
+                    ctx.fillText("Inalcancável");
+                }
+                
+
+
+                if(estadoAtual == estados.jogar){
+                    ctx.fillStyle = "green";
+                    ctx.fillRect(width / 2 - 50, height / 2 - 50, 100, 100);
+                }else if (estadoAtual == estados.perdeu){
+                    ctx.font = "50px Arial";
+                    ctx.fillStyle = "red";
+                    ctx.fillRect(width / 2 - 50, height / 2 - 50, 100, 100);
+
+                    ctx.save();
+                    ctx.translate(width/2 , height/2);
+                    ctx.fillStyle = "#FFFFFF";
+
+                    if (bloco.score > record){
+                        ctx.fillText("New Record!", -150, -65);
+                    }
+
+                    
+                    
+                    if(bloco.score < 10)
+                        ctx.fillText(bloco.score, -14,18);
+                    else if (bloco.score> 10 && bloco.score < 100)
+                        ctx.fillText(bloco.score, -28,18);
+                    else if (bloco.score>= 100 && bloco.score < 1000)
+                        ctx.fillText(bloco.score, -42,18);
+                    else if (bloco.score >= 1000 && bloco.score < 10000)
+                        ctx.fillText(bloco.score, -56,18);
+
+                        ctx.restore();
+                }else if(estadoAtual == estados.jogando){
+                    obstaculos.desenha();
+                }
+
+                chao.desenha();
+                
+                bloco.desenha();
+            }
+
+            function autaliza(){
+                qframes++;
+                bloco.atualiza();
+
+                if (estadoAtual == estados.jogando){
+                    obstaculos.atualiza();
+                }
+               
+            }
+
+            function loopGame(){
+                autaliza()
+                desenho();
+
+                window.requestAnimationFrame(loopGame);
+            }
+
+            function click(event){
+                
+
+                if(estadoAtual == estados.jogando){
+                    bloco.pula();
+                }else if (estadoAtual == estados.jogar){
+                    estadoAtual = estados.jogando;
+                }else if (estadoAtual == estados.perdeu && bloco.y >= 2* height){
+                    estadoAtual = estados.jogar;
+                    obstaculos.limpa();
+                    bloco.reset();
+                }
+            }   
+
+            function main(){
+                width = window.innerWidth;
+                height = window.innerHeight;
+
+                if(width >= 500){
+                    width = 600;
+                    height = 600;
+                }
+
+                canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+                canvas.style.border = "1px solid #000000";
+
+                ctx = canvas.getContext("2d");
+                document.body.appendChild(canvas);
+                document.addEventListener("mousedown", click);
+
+                estadoAtual = estados.jogar;
+
+                record = localStorage.getItem("record");
+                if (record == null){
+                    record = 0;
+                }
+                loopGame();
+            }  
+
+            //iniciar o jogo
+            main();
+        </script>
+    </body>
+</html>
